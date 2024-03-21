@@ -25,6 +25,53 @@ void printAdjacencyList(vector<vector<int>> adjacency_list) {
     }
 }
 
+class QuickSort {
+private:
+    static int partition(vector<int>& arr, int start, int end){
+        int pivot = arr[start];
+    
+        int count = 0;
+        for (int i = start + 1; i <= end; i++) {
+            if (arr[i] <= pivot)
+                count++;
+        }
+    
+        int pivotIndex = start + count;
+        swap(arr[pivotIndex], arr[start]);
+    
+        int i = start, j = end;
+        while (i < pivotIndex && j > pivotIndex) {
+            while (arr[i] <= pivot) { i++; }
+
+            while (arr[j] > pivot) { j--; }
+    
+            if (i < pivotIndex && j > pivotIndex) {
+                swap(arr[i++], arr[j--]);
+            }
+        }
+    
+        return pivotIndex;
+    }
+
+    static void sortR(vector<int>& arr, int start, int end){
+        if (start >= end){ return; }
+    
+        int p = partition(arr, start, end);
+    
+        sortR(arr, start, p - 1);
+        sortR(arr, p + 1, end);
+    }
+
+public:
+    static void sort(vector<int>& arr){
+        int start = 0;
+        int end = arr.size() - 1;
+        sortR(arr, start, end);
+    }
+};
+
+
+
 void dfs(int v, int p = -1) {
     visited[v] = true;
     tin[v] = low[v] = timer++;
@@ -60,6 +107,16 @@ void findBorderLinks() {
     for (int i = 0; i < n; ++i) {
         if (!visited[i]){ dfs (i); }
     }
+
+    vector<int> sorted_border_links = vector<int>(border_links.begin(), border_links.end());
+    QuickSort::sort(sorted_border_links);
+
+    cout << sorted_border_links.size() <<  endl;
+    for(int border_link: sorted_border_links) {
+        cout << border_link << " ";
+    }
+
+    cout << endl;
 }
 
 vector<vector<int>> removeVertices(vector<vector<int>> adjacency_list, unordered_set<int> vertices_to_remove) {
@@ -132,10 +189,10 @@ int main() {
     }
 
     findBorderLinks();
-    printAdjacencyList(adjacency_list);
-    cout << "===========" << endl;
+    // printAdjacencyList(adjacency_list);
+    // cout << "===========" << endl;
     vector<vector<int>> cutted_graph = removeVertices(adjacency_list, border_links);
-    printAdjacencyList(cutted_graph);
+    // printAdjacencyList(cutted_graph);
 
     vector<vector<int>> clusters = findClusters(cutted_graph);
 
