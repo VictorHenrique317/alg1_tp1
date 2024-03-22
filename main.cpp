@@ -14,14 +14,14 @@ int timer;
 unordered_set<int> border_links;
 
 void printAdjacencyList(vector<vector<int>> adjacency_list) {
-    cout << "Size: " << adjacency_list.size() << endl;
+    printf("Size: %ld\n", adjacency_list.size());
 
     for (int i = 1; i < adjacency_list.size(); i++) {
-        cout << i << " -> ";
+        printf("%d -> ", i);
         for (int j = 0; j < adjacency_list[i].size(); j++) {
-            cout << adjacency_list[i][j] << " ";
+            printf("%d ", adjacency_list[i][j]);
         }
-        cout << endl;
+        printf("\n");
     }
 }
 
@@ -70,8 +70,6 @@ public:
     }
 };
 
-
-
 void dfs(int v, int p = -1) {
     visited[v] = true;
     tin[v] = low[v] = timer++;
@@ -107,16 +105,21 @@ void findBorderLinks() {
     for (int i = 0; i < n; ++i) {
         if (!visited[i]){ dfs (i); }
     }
+}
 
+void listBorderLinks(unordered_set<int> border_links) {
     vector<int> sorted_border_links = vector<int>(border_links.begin(), border_links.end());
     QuickSort::sort(sorted_border_links);
 
-    cout << sorted_border_links.size() <<  endl;
+    printf("%ld\n", sorted_border_links.size());
     for(int border_link: sorted_border_links) {
-        cout << border_link << " ";
-    }
+        printf("%d", border_link);
 
-    cout << endl;
+        if(border_link != sorted_border_links.back()) {
+            printf(" ");
+        }
+    }
+    printf("\n");
 }
 
 vector<vector<int>> removeVertices(vector<vector<int>> adjacency_list, unordered_set<int> vertices_to_remove) {
@@ -156,21 +159,44 @@ vector<vector<int>> findClusters(vector<vector<int>> cutted_graph) {
             vector<int> cluster = vector<int>();
             dfs(i);
             
-            for(bool is_visited : visited) {
+            for(bool is_visited : visited) { // TODO: Errado??
                 if(is_visited) { cluster.push_back(i); }
             }
 
-            clusters.push_back(cluster);
+            vector<int> sorted_cluster = vector<int>(cluster.begin(), cluster.end());
+            QuickSort::sort(sorted_cluster);
+            clusters.push_back(sorted_cluster);
         }
     }
 
     return clusters;
 }
 
+void listClusters(vector<vector<int>> clusters){
+    int nb_clusters = clusters.size();
+    printf("%d\n", nb_clusters);
+
+    for(int j=0; j < nb_clusters; j++) {
+        vector<int> cluster = clusters[j];
+
+        int cluster_identifier = n + j;
+        printf("%d ", cluster_identifier);
+
+        int cluster_size = cluster.size();
+        printf("%d ", cluster_size);
+
+        for(int i=0; i < cluster_size; i++) {
+            printf("%d", cluster[i]);
+
+            if(i != cluster_size - 1) { printf(" "); }
+        }
+    }
+}
+
 int main() {
     adjacency_list = vector<vector<int>>();
 
-    cin >> n; // Número de links
+    scanf("%d", &n); // Número de links
     for (int i = 0; i <= n; i++) {
         // Inicializando a lista de adjacência com vetores vazios
         // o primeiro elemento não irá ser utilizado porque a indexação começa em 1
@@ -178,23 +204,22 @@ int main() {
     }
 
     int m; // Número de conexões
-    cin >> m;
+    scanf("%d", &m);
     for (int i = 0; i < m; i++) {
         int x, y;
-        cin >> x; // Indexação começa em 1
-        cin >> y; // Indexação começa em 1
+        scanf("%d", &x); // Indexação começa em 1
+        scanf("%d", &y); // Indexação começa em 1
         
         adjacency_list[x].push_back(y);
         adjacency_list[y].push_back(x); // Assumindo grafo não dirigido
     }
 
     findBorderLinks();
-    // printAdjacencyList(adjacency_list);
-    // cout << "===========" << endl;
-    vector<vector<int>> cutted_graph = removeVertices(adjacency_list, border_links);
-    // printAdjacencyList(cutted_graph);
+    listBorderLinks(border_links);
 
-    vector<vector<int>> clusters = findClusters(cutted_graph);
+    vector<vector<int>> cut_graph = removeVertices(adjacency_list, border_links);
+    vector<vector<int>> clusters = findClusters(cut_graph);
+    listClusters(clusters);
 
     return 0;
 }
