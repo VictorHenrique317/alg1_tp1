@@ -1,29 +1,26 @@
 #include <vector>
 #include <iostream>
 #include <unordered_set>
+#include <set>
 
 using namespace std;
 
-// Variáveis globais
+// Variáveis globais definidas pelo usuario
 int n;
+int m;
 vector<vector<int>> adjacency_list; // Indexação dos vértices começa em 1
-vector<bool> visited; // Indexação dos vértices começa em 0
-vector<int> tin, low; // Indexação dos vértices começa em 0
-int timer;
 
+// Variáveis globais do DFS
+int timer;
+vector<bool> visited; // Indexação dos vértices começa em 0
+
+// Variáveis globais do DFS para encontrar links de borda
+vector<int> tin, low; // Indexação dos vértices começa em 0
 unordered_set<int> border_links;
 
-void printAdjacencyList(vector<vector<int>> adjacency_list) {
-    printf("Size: %ld\n", adjacency_list.size());
-
-    for (int i = 1; i < adjacency_list.size(); i++) {
-        printf("%d -> ", i);
-        for (int j = 0; j < adjacency_list[i].size(); j++) {
-            printf("%d ", adjacency_list[i][j]);
-        }
-        printf("\n");
-    }
-}
+// Variáveis globais para encontrar clusters
+vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
+set<pair<int, int>> edges;
 
 class QuickSort {
 private:
@@ -70,6 +67,44 @@ public:
     }
 };
 
+void printVector(vector<int> vec) {
+    for (int i = 0; i < vec.size(); i++) {
+        printf("%d ", vec[i]);
+    }
+    printf("\n");
+}
+
+void printAdjacencyList(vector<vector<int>> adjacency_list) {
+    printf("Size: %ld\n", adjacency_list.size());
+
+    for (int i = 1; i < adjacency_list.size(); i++) {
+        printf("%d -> ", i);
+        for (int j = 0; j < adjacency_list[i].size(); j++) {
+            printf("%d ", adjacency_list[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+pair<int, int> makeEdge(int x, int y) {
+    return make_pair(min(x, y), max(x, y));
+}
+
+void printUnorderedSet(unordered_set<int> set) {
+    vector<int> vec = vector<int>(set.begin(), set.end());
+    QuickSort::sort(vec);
+
+    for (int i = 0; i < vec.size(); i++) {
+        printf("%d", vec[i]);
+
+        if(i != vec.size() - 1) {
+            printf(" ");
+        }
+    }
+
+    printf("\n");
+}
+
 void dfs(int v, int p = -1) {
     visited[v] = true;
     tin[v] = low[v] = timer++;
@@ -102,12 +137,12 @@ void findBorderLinks() {
     tin.assign(n, -1);
     low.assign(n, -1);
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 1; i <= n; ++i) {
         if (!visited[i]){ dfs (i); }
     }
 }
 
-void listBorderLinks(unordered_set<int> border_links) {
+void listBorderLinks() {
     vector<int> sorted_border_links = vector<int>(border_links.begin(), border_links.end());
     QuickSort::sort(sorted_border_links);
 
@@ -122,75 +157,104 @@ void listBorderLinks(unordered_set<int> border_links) {
     printf("\n");
 }
 
-vector<vector<int>> removeVertices(vector<vector<int>> adjacency_list, unordered_set<int> vertices_to_remove) {
-    vector<vector<int>> cutted_graph = vector<vector<int>>();
+void clusterWiseDfs(unordered_set<int>& cluster, int v) {
+    visited[v] = true;
+    cluster.insert(v);
 
-    int current_vertex = 0;
-    for(vector<int> neighbors : adjacency_list) {
-        vector<int> new_neighbors = vector<int>();
+    if(border_links.find(v) != border_links.end()) {
+        // Se for um link de borda não se deve continuar a busca
+        return;
+    }
 
-        if((current_vertex == 0) || (vertices_to_remove.find(current_vertex) != vertices_to_remove.end())){
-            // É o primeiro elemento ou um vértice a ser removido
-            current_vertex++;
-            cutted_graph.push_back(new_neighbors);
+    for (int neighbor : adjacency_list[v]) {
+        if (!visited[neighbor]) {
+            edges.erase(makeEdge(v, neighbor));
+            clusterWiseDfs(cluster, neighbor);
+        }
+    }
+}
+
+void findClusters() {
+    visited.assign(n, false); // Resetando o vetor de cores
+    for (int i = 1; i <= n; i++) {
+        if(border_links.find(i) != border_links.end()) {
+            // Se for um link de borda não se deve iniciar a busca
             continue;
         }
 
-        for(int neighbor : neighbors) {
-            if(vertices_to_remove.find(neighbor) == vertices_to_remove.end()) {
-                // Vizinho não esta na lista de vértices a serem removidos, então adiciona
-                new_neighbors.push_back(neighbor);
-            }
-        }
+        if (!visited[i]) {
+            unordered_set<int> cluster = unordered_set<int>();
+            visited.assign(n, false); // Resetando o vetor de cores para que um 
+            // link de borda possa ser visitado multiplas vezes e adicionado em multiplos clusters
 
-        current_vertex++;
-        cutted_graph.push_back(new_neighbors);
+            clusterWiseDfs(cluster, i);
+            clusters.push_back(cluster);
+        }
     }
 
-    return cutted_graph;
-}
+    // Aqui achamos todos os clusters, menos aqueles que contem somente dois links de borda
+    // Agora precisamos achar os clusters que contem somente dois links de borda
 
-vector<vector<int>> findClusters(vector<vector<int>> cutted_graph) {
-    vector<vector<int>> clusters = vector<vector<int>>();
+    for (pair<int, int> edge : edges) {
+        // Itera sobre todas as arestas que não foram visitadas pelo DFS
+        int u = edge.first;
+        int v = edge.second;
 
-    visited.assign(n, false); // Resetando o vetor de visitados
-    for (int i = 0; i < n; ++i) {
-        if (!visited[i]){
-            vector<int> cluster = vector<int>();
-            dfs(i);
+        if(border_links.find(u) != border_links.end() && border_links.find(v) != border_links.end()) {
+            // Aqui ambos os vértices não são links de borda, devemos verificar se existe um cluster que
+            // contenha os dois simultaneamente. Se não existir devemos criar um cluster com esses dois vértices
             
-            for(bool is_visited : visited) { // TODO: Errado??
-                if(is_visited) { cluster.push_back(i); }
+            bool cluster_exists = false;
+            for (unordered_set<int> cluster : clusters) {
+                if(cluster.find(u) != cluster.end() && cluster.find(v) != cluster.end()) {
+                    // Esse cluster contem ambos os vértices, não precisamos criar um novo cluster
+                    cluster_exists = true;
+                    break;
+                }
             }
 
-            vector<int> sorted_cluster = vector<int>(cluster.begin(), cluster.end());
-            QuickSort::sort(sorted_cluster);
-            clusters.push_back(sorted_cluster);
+            if(!cluster_exists){
+                // Criando um novo cluster
+                unordered_set<int> cluster = unordered_set<int>();
+                cluster.insert(u);
+                cluster.insert(v);
+                clusters.push_back(cluster);
+            }
         }
     }
-
-    return clusters;
 }
 
-void listClusters(vector<vector<int>> clusters){
+void listClusters(){
     int nb_clusters = clusters.size();
     printf("%d\n", nb_clusters);
 
-    for(int j=0; j < nb_clusters; j++) {
-        vector<int> cluster = clusters[j];
-
+    int j = 0;
+    for (unordered_set<int> cluster: clusters){
+        // printVector(cluster);
         int cluster_identifier = n + j;
         printf("%d ", cluster_identifier);
 
         int cluster_size = cluster.size();
         printf("%d ", cluster_size);
-
-        for(int i=0; i < cluster_size; i++) {
-            printf("%d", cluster[i]);
-
-            if(i != cluster_size - 1) { printf(" "); }
-        }
+        printUnorderedSet(cluster);
+        j++;
     }
+
+    // for(int j=0; j < nb_clusters; j++) {
+    //     vector<int> cluster = clusters[j];
+
+    //     int cluster_identifier = n + j;
+    //     printf("%d ", cluster_identifier);
+
+    //     int cluster_size = cluster.size();
+    //     printf("%d ", cluster_size);
+
+    //     for(int i=0; i < cluster_size; i++) {
+    //         printf("%d", cluster[i]);
+
+    //         if(i != cluster_size - 1) { printf(" "); }
+    //     }
+    // }
 }
 
 int main() {
@@ -203,7 +267,6 @@ int main() {
         adjacency_list.push_back(vector<int>());
     }
 
-    int m; // Número de conexões
     scanf("%d", &m);
     for (int i = 0; i < m; i++) {
         int x, y;
@@ -212,14 +275,20 @@ int main() {
         
         adjacency_list[x].push_back(y);
         adjacency_list[y].push_back(x); // Assumindo grafo não dirigido
+
+        edges.insert(makeEdge(x, y));
     }
 
     findBorderLinks();
-    listBorderLinks(border_links);
+    listBorderLinks();
 
-    vector<vector<int>> cut_graph = removeVertices(adjacency_list, border_links);
-    vector<vector<int>> clusters = findClusters(cut_graph);
-    listClusters(clusters);
+    findClusters();
+    listClusters();
+
+    // vector<vector<int>> clusters = findClusters(border_links);
+
+    // printAdjacencyList(adjacency_list);
+    // printf("\n");
 
     return 0;
 }
