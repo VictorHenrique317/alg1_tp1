@@ -18,6 +18,7 @@ vector<bool> visited; // Indexação dos vértices começa em 0
 // Variáveis globais do DFS para encontrar links de borda
 vector<int> tin, low; // Indexação dos vértices começa em 0
 unordered_set<int> border_links;
+int excluded_link;
 
 // Variáveis globais para encontrar clusters
 vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
@@ -114,40 +115,86 @@ void printUnorderedSet(unordered_set<int> set) {
     printf("\n");
 }
 
-void dfs(int v, int p = -1) {
-    visited[v] = true;
-    tin[v] = low[v] = timer++;
-    int children=0;
+// void dfs(int v, int p = -1) {
+//     visited[v] = true;
+//     tin[v] = low[v] = timer++;
+//     int children=0;
 
-    for (int to : adjacency_list[v]) {
-        if (to == p) { continue; }
+//     for (int to : adjacency_list[v]) {
+//         if (to == p) { continue; }
 
-        if (visited[to]) {
-            low[v] = min(low[v], tin[to]);
-        } else {
-            dfs(to, v);
-            low[v] = min(low[v], low[to]);
+//         if (visited[to]) {
+//             low[v] = min(low[v], tin[to]);
+//         } else {
+//             dfs(to, v);
+//             low[v] = min(low[v], low[to]);
 
-            if (low[to] >= tin[v] && p!=-1)
-                border_links.insert(v);
+//             if (low[to] >= tin[v] && p!=-1)
+//                 border_links.insert(v);
             
-            children++;
+//             children++;
+//         }
+//     }
+    
+//     if(p == -1 && children > 1)
+//         border_links.insert(v);
+// }
+
+void dfs(int v){
+    if(v == excluded_link) { return; }
+    visited[v] = true;
+
+    for (int neighbor : adjacency_list[v]) {
+        if(!visited[neighbor]){
+            dfs(neighbor);
         }
     }
-    
-    if(p == -1 && children > 1)
-        border_links.insert(v);
 }
 
+// void findBorderLinks() {
+//     timer = 0;
+
+//     visited.assign(n, false);
+//     tin.assign(n, -1);
+//     low.assign(n, -1);
+
+//     for (int i = 1; i <= n; ++i) {
+//         if (!visited[i]){ dfs (i); }
+//     }
+// }
+
 void findBorderLinks() {
-    timer = 0;
-
     visited.assign(n, false);
-    tin.assign(n, -1);
-    low.assign(n, -1);
-
+    excluded_link = 0; // Inicializando o link excluído para 0 (nenhum link é excluído)
+    int minimum_nb_components = 0;
     for (int i = 1; i <= n; ++i) {
-        if (!visited[i]){ dfs (i); }
+        if (!visited[i]){ 
+            dfs (i);
+            minimum_nb_components++;
+        }
+    }
+
+    // printf("Componentes minimos: %d\n", minimum_nb_components);
+    
+    for(int exc = 1; exc <= n; exc++){
+        excluded_link = exc;
+        visited.assign(n, false);
+
+        int new_component_nb = 0;
+        for (int i = 1; i <= n; ++i) {
+            if(i == exc) { continue; } // Ignorando o link excluído
+
+            if (!visited[i]){ 
+                dfs (i);
+                new_component_nb++;
+            }
+        }
+
+        // printf("Link excluído: %d, Componentes: %d\n", exc, new_component_nb);
+
+        if (new_component_nb > minimum_nb_components){
+            border_links.insert(exc);
+        }
     }
 }
 
@@ -178,6 +225,13 @@ void clusterWiseDfs(unordered_set<int>& cluster, int v) {
     }
 }
 
+void clearBorderLinksColors(){
+    // visited.assign(n, false);
+    for(int border_link: border_links){
+        visited[border_link] = false;
+    }
+}
+
 void findClusters() {
     visited.assign(n, false); // Resetando o vetor de cores
     for (int i = 1; i <= n; i++) {
@@ -188,10 +242,11 @@ void findClusters() {
 
         if (!visited[i]) {
             unordered_set<int> cluster = unordered_set<int>();
-            visited.assign(n, false); // Resetando o vetor de cores para que um 
+            clearBorderLinksColors(); // Resetando o vetor de cores para que um 
             // link de borda possa ser visitado multiplas vezes e adicionado em multiplos clusters
 
             clusterWiseDfs(cluster, i);
+            if(cluster.size() == 1) { continue; } // Ignorando clusters com somente um link
             clusters.push_back(cluster);
         }
     }
@@ -332,11 +387,6 @@ int main() {
 
     findClusterBorderForest();
     listClusterBorderForest();
-
-    // vector<vector<int>> clusters = findClusters(border_links);
-
-    // printAdjacencyList(adjacency_list);
-    // printf("\n");
 
     return 0;
 }
