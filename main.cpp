@@ -2,6 +2,7 @@
 #include <iostream>
 #include <unordered_set>
 #include <set>
+#include <algorithm>
 
 using namespace std;
 
@@ -21,6 +22,10 @@ unordered_set<int> border_links;
 // Variáveis globais para encontrar clusters
 vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
 set<pair<int, int>> edges;
+
+// Variáveis globais para encontrar a floresta de clusters borda
+vector<vector<int>> forest_adjacency_list;
+vector<vector<int>> forest_edges;
 
 class QuickSort {
 private:
@@ -69,7 +74,11 @@ public:
 
 void printVector(vector<int> vec) {
     for (int i = 0; i < vec.size(); i++) {
-        printf("%d ", vec[i]);
+        printf("%d", vec[i]);
+
+        if(i != vec.size() - 1) {
+            printf(" ");
+        }
     }
     printf("\n");
 }
@@ -148,13 +157,8 @@ void listBorderLinks() {
 
     printf("%ld\n", sorted_border_links.size());
     for(int border_link: sorted_border_links) {
-        printf("%d", border_link);
-
-        if(border_link != sorted_border_links.back()) {
-            printf(" ");
-        }
+        printf("%d\n", border_link);
     }
-    printf("\n");
 }
 
 void clusterWiseDfs(unordered_set<int>& cluster, int v) {
@@ -224,37 +228,78 @@ void findClusters() {
     }
 }
 
+vector<vector<int>> sortLexicographically(vector<vector<int>> unsorted) {
+    vector<vector<int>> sorted = vector<vector<int>>();
+    for(vector<int> vec: unsorted){
+        sorted.push_back(vec);
+    }
+
+    sort(sorted.begin(), sorted.end());
+    return sorted;
+}
+
 void listClusters(){
     int nb_clusters = clusters.size();
     printf("%d\n", nb_clusters);
 
-    int j = 0;
-    for (unordered_set<int> cluster: clusters){
-        // printVector(cluster);
+    int j = 1;
+    vector<vector<int>> clusters_vector = vector<vector<int>>();
+    for(unordered_set<int> cluster : clusters){
+        vector<int> cluster_vector = vector<int>(cluster.begin(), cluster.end());
+        QuickSort::sort(cluster_vector);
+        clusters_vector.push_back(cluster_vector);
+    }
+
+    vector<vector<int>> sorted_clusters = sortLexicographically(clusters_vector);
+    clusters.clear();
+    for (vector<int> cluster: sorted_clusters){
         int cluster_identifier = n + j;
         printf("%d ", cluster_identifier);
 
         int cluster_size = cluster.size();
         printf("%d ", cluster_size);
-        printUnorderedSet(cluster);
+        printVector(cluster);
+
+        unordered_set<int> cluster_set = unordered_set<int>(cluster.begin(), cluster.end());
+        clusters.push_back(cluster_set);
         j++;
     }
+}
 
-    // for(int j=0; j < nb_clusters; j++) {
-    //     vector<int> cluster = clusters[j];
+void findClusterBorderForest(){
+    // Indexação começa do 1, primeiro elemento é desconsiderado
+    forest_adjacency_list = vector<vector<int>>();
+    forest_adjacency_list.push_back(vector<int>());
 
-    //     int cluster_identifier = n + j;
-    //     printf("%d ", cluster_identifier);
+    int cluster_identifier = n+1;
+    for(unordered_set<int> cluster: clusters){
 
-    //     int cluster_size = cluster.size();
-    //     printf("%d ", cluster_size);
+        for(int border_link: border_links){
+            if(cluster.find(border_link) != cluster.end()){
+                // Esse cluster contem esse link de borda
+                int x = min(cluster_identifier, border_link);
+                int y = max(cluster_identifier, border_link);
+                
+                vector<int> edge = vector<int>();
+                edge.push_back(x);
+                edge.push_back(y);
+                forest_edges.push_back(edge);
+            }
+        }
 
-    //     for(int i=0; i < cluster_size; i++) {
-    //         printf("%d", cluster[i]);
+        cluster_identifier++;
+    }
+}
 
-    //         if(i != cluster_size - 1) { printf(" "); }
-    //     }
-    // }
+void listClusterBorderForest(){
+    int forest_vertice_nb = clusters.size() + border_links.size();
+    int forest_edge_nb = forest_edges.size();
+    printf("%d %d\n", forest_vertice_nb, forest_edge_nb);
+
+    vector<vector<int>> sorted_edges = sortLexicographically(forest_edges);
+    for(vector<int> edge: sorted_edges){
+        printVector(edge);
+    }
 }
 
 int main() {
@@ -284,6 +329,9 @@ int main() {
 
     findClusters();
     listClusters();
+
+    findClusterBorderForest();
+    listClusterBorderForest();
 
     // vector<vector<int>> clusters = findClusters(border_links);
 
