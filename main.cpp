@@ -1,4 +1,5 @@
 #include <vector>
+#include <list>
 #include <iostream>
 #include <unordered_set>
 #include <set>
@@ -232,6 +233,54 @@ void clearBorderLinksColors(){
     }
 }
 
+bool hasCircuit(int current, int target, list<int>& path) {
+    visited[current] = true;
+    path.push_back(current);
+
+    // printf("Deepening -> Current: %d, Target: %d\n", current, target);
+
+    if (current == target && path.size() > 1) {
+        return true;
+    }
+
+    for (int neighbor : adjacency_list[current]) {
+        if(neighbor == target && path.size() > 2) {
+            path.push_back(neighbor);
+            return true;
+        }
+
+        if (!visited[neighbor] && hasCircuit(neighbor, target, path)) {
+            return true;
+        }
+    }
+
+    visited[current] = false;
+    path.pop_back();
+
+    // printf("Returning\n");
+
+    return false;
+}
+
+void removeCircuitEdges(vector<int> circuit) {
+    for (int i = 0; i < circuit.size() - 1; i++) {
+        edges.erase(makeEdge(circuit[i], circuit[i + 1]));
+    }
+}
+
+vector<int> findCircuit(int vertex) {
+    visited.assign(n, false);
+    list<int> path;
+
+    if (hasCircuit(vertex, vertex, path)) {
+        vector<int> circuit = vector<int>(path.begin(), path.end());
+        removeCircuitEdges(circuit);
+        return circuit;
+    } else {
+        return vector<int>();
+    }
+}
+
 void findClusters() {
     visited.assign(n, false); // Resetando o vetor de cores
     for (int i = 1; i <= n; i++) {
@@ -258,6 +307,15 @@ void findClusters() {
         // Itera sobre todas as arestas que não foram visitadas pelo DFS
         int u = edge.first;
         int v = edge.second;
+
+        vector<int> circuit = findCircuit(u);
+        if(circuit.size() > 0){
+            // Se existe um circuito que contem o vértice u, então existe um cluster incompleto
+            // que contem o vértice u e v
+
+            void completeCluster(circuit);
+            continue;
+        }
 
         if(border_links.find(u) != border_links.end() && border_links.find(v) != border_links.end()) {
             // Aqui ambos os vértices não são links de borda, devemos verificar se existe um cluster que
