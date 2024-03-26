@@ -25,6 +25,11 @@ int excluded_link;
 // Variáveis globais para encontrar clusters
 vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
 set<pair<int, int>> edges;
+vector<int> adj[N];
+vector<int> dfn, low, parent;
+int timeStamp;
+stack<int> S;
+vector<vector<int>> components;
 
 // Variáveis globais para encontrar a floresta de clusters borda
 vector<vector<int>> forest_adjacency_list;
@@ -177,18 +182,6 @@ void dfs(int v){
     }
 }
 
-// void findBorderLinks() {
-//     timer = 0;
-
-//     visited.assign(n, false);
-//     tin.assign(n, -1);
-//     low.assign(n, -1);
-
-//     for (int i = 1; i <= n; ++i) {
-//         if (!visited[i]){ dfs (i); }
-//     }
-// }
-
 void findBorderLinks() {
     visited.assign(n, false);
     excluded_link = 0; // Inicializando o link excluído para 0 (nenhum link é excluído)
@@ -234,194 +227,6 @@ void listBorderLinks() {
     }
 }
 
-void clusterWiseDfs(unordered_set<int>& cluster, int v) {
-    visited[v] = true;
-    cluster.insert(v);
-
-    if(border_links.find(v) != border_links.end()) {
-        // Se for um link de borda não se deve continuar a busca
-        return;
-    }
-
-    for (int neighbor : adjacency_list[v]) {
-        if (!visited[neighbor]) {
-            edges.erase(makeEdge(v, neighbor));
-            clusterWiseDfs(cluster, neighbor);
-        }
-    }
-}
-
-void clearBorderLinksColors(){
-    // visited.assign(n, false);
-    for(int border_link: border_links){
-        visited[border_link] = false;
-    }
-}
-
-bool hasCircuit(int current, int target, list<int>& path) {
-    visited[current] = true;
-    path.push_back(current);
-
-    // printf("Deepening -> Current: %d, Target: %d\n", current, target);
-
-    if (current == target && path.size() > 1) {
-        return true;
-    }
-
-    for (int neighbor : adjacency_list[current]) {
-        if(neighbor == target && path.size() > 2) {
-            // Um dos vizinhos é o target, circuito encontrado
-            path.push_back(neighbor);
-            return true;
-        }
-
-        if (!visited[neighbor]) { // Não permite a repetição de vértices
-            if(hasCircuit(neighbor, target, path)){
-                return true;
-            }
-        }
-    }
-
-    visited[current] = false;
-    path.pop_back();
-
-    // printf("Returning\n");
-
-    return false;
-}
-
-vector<int> findCircuit(int vertex) {
-    visited.assign(n, false);
-    list<int> path;
-
-    if (hasCircuit(vertex, vertex, path)) {
-        vector<int> circuit = vector<int>(path.begin(), path.end());
-        return circuit;
-    } else {
-        return vector<int>();
-    }
-}
-
-bool completeCluster(unordered_set<int> circuit, int u, int v) {
-    int nb_contained_links = 0;
-    unordered_set<int>* cluster_that_most_contains_circuit_links = nullptr;
-    for(int i=0; i<clusters.size(); i++){
-        unordered_set<int>* current_cluster_ptr = &clusters[i];
-        if(current_cluster_ptr->find(u) == current_cluster_ptr->end() && current_cluster_ptr->find(v) == current_cluster_ptr->end()){
-            // Esse cluster não contém os dois links de borda, com certeza ele não pode ser completado
-            continue;
-        }
-
-        int intersection_size = setIntersection(*current_cluster_ptr, circuit).size();
-
-        if(intersection_size == circuit.size()){
-            // Esse cluster já contém todos os links do circuito, ele não será completado
-            continue;
-        }
-
-        if(intersection_size > nb_contained_links){
-            nb_contained_links = intersection_size;
-            cluster_that_most_contains_circuit_links = current_cluster_ptr;
-        }
-    }
-
-    if(cluster_that_most_contains_circuit_links == nullptr){
-        // Não existe um cluster que possa ser completado
-        return false;
-    }
-    
-    int old_cluster_size = cluster_that_most_contains_circuit_links->size();
-    for(int link: circuit){
-        cluster_that_most_contains_circuit_links->insert(link);
-    }
-
-    return old_cluster_size != cluster_that_most_contains_circuit_links->size();
-}
-
-// void findClusters() {
-//     visited.assign(n, false); // Resetando o vetor de cores
-//     for (int i = 1; i <= n; i++) {
-//         if(border_links.find(i) != border_links.end()) {
-//             // Se for um link de borda não se deve iniciar a busca
-//             continue;
-//         }
-
-//         if (!visited[i]) {
-//             unordered_set<int> cluster = unordered_set<int>();
-//             clearBorderLinksColors(); // Resetando o vetor de cores para que um 
-//             // link de borda possa ser visitado multiplas vezes e adicionado em multiplos clusters
-
-//             clusterWiseDfs(cluster, i);
-//             if(cluster.size() == 1) { continue; } // Ignorando clusters com somente um link
-//             clusters.push_back(cluster);
-//         }
-//     }
-
-//     // Aqui achamos todos os clusters, menos aqueles que contem somente dois links de borda
-//     // Agora precisamos achar os clusters que contem somente dois links de borda
-
-//     unordered_set<int> seen_by_circuit_links = unordered_set<int>();
-//     for (pair<int, int> edge : edges) {
-//         // Itera sobre todas as arestas que não foram visitadas pelo DFS
-//         int u = edge.first;
-//         int v = edge.second;
-//         // printf("U: %d, V: %d\n", u, v);
-
-//         if(seen_by_circuit_links.find(u) != seen_by_circuit_links.end() && seen_by_circuit_links.find(v) != seen_by_circuit_links.end()){
-//             // Se uma aresta percente a um circuito já incorporado não precisamos fazer nada
-//             continue;
-//         }
-
-//         if(border_links.find(u) != border_links.end() && border_links.find(v) != border_links.end()) {
-//             // Aqui ambos os vértices não são links de borda, devemos verificar se existe um cluster que
-//             // contenha os dois simultaneamente. Se não existir devemos criar um cluster com esses dois vértices
-            
-//             bool cluster_exists = false;
-//             for (unordered_set<int> cluster : clusters) {
-//                 if(cluster.find(u) != cluster.end() && cluster.find(v) != cluster.end()) {
-//                     // Esse cluster contem ambos os vértices, não precisamos criar um novo cluster
-//                     cluster_exists = true;
-//                     break;
-//                 }
-//             }
-
-//             if(cluster_exists){
-//                 // Se existe um cluster que contem ambos os vértices, então não precisamos fazer nada
-//                 continue;
-//             }
-
-//             // Aqui verificamos se existe um circuito iniciado em u
-//             // Se existir, então existe um cluster incompleto e o circuito deve ser adicionado a ele
-//             vector<int> circuit = findCircuit(u);
-//             bool completed_cluster = false;
-//             if(circuit.size() > 0){
-//                 // Se existe um circuito que contem o vértice u, então existe um cluster incompleto
-//                 // que contem o vértice u e v
-//                 // printf("Circuito encontrado: ");
-//                 // printVector(circuit);
-//                 unordered_set<int> circuit_set = unordered_set<int>(circuit.begin(), circuit.end());
-//                 seen_by_circuit_links = setUnion(seen_by_circuit_links, circuit_set);
-//                 completed_cluster = completeCluster(circuit_set, u, v);
-//             }
-
-//             if (completed_cluster){ continue; } // Os links do circuito foram adicionados a um cluster existente
-            
-//             // Aqui ou não existe um circuito ou não foi possível completar um cluster com o circuito
-//             // Então devemos criar um cluster com os dois vértices
-//             unordered_set<int> cluster = unordered_set<int>();
-//             cluster.insert(u);
-//             cluster.insert(v);
-//             clusters.push_back(cluster);
-//         }
-//     }
-// }
-const int N = 1e5 + 5;
-
-vector<int> adj[N];
-int dfn[N], low[N], parent[N], timeStamp;
-stack<int> S;
-vector<vector<int>> components;
-
 void dfsBicomponent(int u) {
   dfn[u] = low[u] = ++timeStamp;
   S.push(u);
@@ -448,6 +253,21 @@ void dfsBicomponent(int u) {
   }
 }
 
+void findClusters(){
+    for (int i = 1; i <= n; i++) {
+        if (dfn[i] == 0) {
+            dfsBicomponent(i);
+        }
+    }
+
+    for (vector<int> component : components) {
+        for (int v : component) {
+        cout << v << " ";
+        }
+        cout << endl;
+    }
+}
+const int N = 1e5 + 5;
 
 vector<vector<int>> sortLexicographically(vector<vector<int>> unsorted) {
     vector<vector<int>> sorted = vector<vector<int>>();
@@ -546,20 +366,11 @@ int main() {
     }
 
     findBorderLinks();
-    // listBorderLinks();
+    listBorderLinks();
 
-    for (int i = 1; i <= n; i++) {
-        if (dfn[i] == 0) {
-            dfsBicomponent(i);
-        }
-    }
+    findClusters();
 
-    for (const auto& component : components) {
-        for (int v : component) {
-        cout << v << " ";
-        }
-        cout << endl;
-    }
+    
 
     // findClusters();
     // listClusters();
