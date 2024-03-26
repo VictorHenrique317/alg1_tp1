@@ -2,6 +2,7 @@
 #include <list>
 #include <iostream>
 #include <unordered_set>
+#include <stack>
 #include <set>
 #include <algorithm>
 
@@ -17,7 +18,7 @@ int timer;
 vector<bool> visited; // Indexação dos vértices começa em 0
 
 // Variáveis globais do DFS para encontrar links de borda
-vector<int> tin, low; // Indexação dos vértices começa em 0
+// vector<int> tin, low; // Indexação dos vértices começa em 0
 unordered_set<int> border_links;
 int excluded_link;
 
@@ -414,62 +415,38 @@ bool completeCluster(unordered_set<int> circuit, int u, int v) {
 //         }
 //     }
 // }
+const int N = 1e5 + 5;
 
-#include <vector>
-#include <unordered_set>
-#include <stack>
+vector<int> adj[N];
+int dfn[N], low[N], parent[N], timeStamp;
+stack<int> S;
+vector<vector<int>> components;
 
-using namespace std;
+void dfsBicomponent(int u) {
+  dfn[u] = low[u] = ++timeStamp;
+  S.push(u);
 
-void DFS(int u, vector<int>& disc, vector<int>& low, vector<int>& parent, stack<int>& st, vector<vector<int>>& adj, vector<vector<int>>& bcc) {
-    static int time = 0;
-    disc[u] = low[u] = ++time;
-    int children = 0;
-
-    for (int v : adj[u]) {
-        if (disc[v] == -1) {
-            children++;
-            st.push(u);
-            parent[v] = u;
-            DFS(v, disc, low, parent, st, adj, bcc);
-
-            low[u] = min(low[u], low[v]);
-
-            if ((disc[u] == 1 && children > 1) || (disc[u] > 1 && low[v] >= disc[u])) {
-                vector<int> temp;
-                while (st.top() != u) {
-                    temp.push_back(st.top());
-                    st.pop();
-                }
-                temp.push_back(st.top());
-                st.pop();
-                bcc.push_back(temp);
-            }
-        }
-        else if (v != parent[u]) {
-            low[u] = min(low[u], disc[v]);
-            if (disc[u] > disc[v]) {
-                st.push(u);
-            }
-        }
+  for (int v : adjacency_list[u]) {
+    if (dfn[v] == 0) {
+      parent[v] = u;
+      dfsBicomponent(v);
+      low[u] = min(low[u], low[v]);
+      if (low[v] >= dfn[u]) {
+        vector<int> component;
+        int w;
+        do {
+          w = S.top();
+          S.pop();
+          component.push_back(w);
+        } while (w != v);
+        component.push_back(u);
+        components.push_back(component);
+      }
+    } else if (v != parent[u]) {
+      low[u] = min(low[u], dfn[v]);
     }
+  }
 }
-
-vector<vector<int>> findBiconnectedComponents(vector<vector<int>>& adj) {
-    int V = adj.size();
-    vector<int> disc(V, -1), low(V, -1), parent(V, -1);
-    stack<int> st;
-    vector<vector<int>> bcc;
-
-    for (int i = 0; i < V; i++) {
-        if (disc[i] == -1) {
-            DFS(i, disc, low, parent, st, adj, bcc);
-        }
-    }
-
-    return bcc;
-}
-
 
 
 vector<vector<int>> sortLexicographically(vector<vector<int>> unsorted) {
@@ -569,17 +546,26 @@ int main() {
     }
 
     findBorderLinks();
-    listBorderLinks();
+    // listBorderLinks();
+
+    for (int i = 1; i <= n; i++) {
+        if (dfn[i] == 0) {
+            dfsBicomponent(i);
+        }
+    }
+
+    for (const auto& component : components) {
+        for (int v : component) {
+        cout << v << " ";
+        }
+        cout << endl;
+    }
 
     // findClusters();
     // listClusters();
-    vector<vector<int>> biconnected_components = findBiconnectedComponents(adjacency_list);
-    for(vector<int> component: biconnected_components){
-        printVector(component);
-    }
 
-    findClusterBorderForest();
-    listClusterBorderForest();
+    // findClusterBorderForest();
+    // listClusterBorderForest();
 
     return 0;
 }
