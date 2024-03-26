@@ -13,23 +13,18 @@ int n;
 int m;
 vector<vector<int>> adjacency_list; // Indexação dos vértices começa em 1
 
-// Variáveis globais do DFS
-int timer;
-vector<bool> visited; // Indexação dos vértices começa em 0
-
 // Variáveis globais do DFS para encontrar links de borda
-// vector<int> tin, low; // Indexação dos vértices começa em 0
 unordered_set<int> border_links;
+vector<bool> visited;
 int excluded_link;
 
 // Variáveis globais para encontrar clusters
 vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
-set<pair<int, int>> edges;
-vector<int> adj[N];
-vector<int> dfn, low, parent;
-int timeStamp;
-stack<int> S;
-vector<vector<int>> components;
+vector<int> dfs_number; 
+vector<int> low; 
+vector<int> parent; 
+int time_stamp;
+stack<int> node_stack;
 
 // Variáveis globais para encontrar a floresta de clusters borda
 vector<vector<int>> forest_adjacency_list;
@@ -46,21 +41,21 @@ private:
                 count++;
         }
     
-        int pivotIndex = start + count;
-        swap(arr[pivotIndex], arr[start]);
+        int pivot_index = start + count;
+        swap(arr[pivot_index], arr[start]);
     
         int i = start, j = end;
-        while (i < pivotIndex && j > pivotIndex) {
+        while (i < pivot_index && j > pivot_index) {
             while (arr[i] <= pivot) { i++; }
 
             while (arr[j] > pivot) { j--; }
     
-            if (i < pivotIndex && j > pivotIndex) {
+            if (i < pivot_index && j > pivot_index) {
                 swap(arr[i++], arr[j--]);
             }
         }
     
-        return pivotIndex;
+        return pivot_index;
     }
 
     static void sortR(vector<int>& arr, int start, int end){
@@ -91,86 +86,6 @@ void printVector(vector<int> vec) {
     printf("\n");
 }
 
-void printAdjacencyList(vector<vector<int>> adjacency_list) {
-    printf("Size: %ld\n", adjacency_list.size());
-
-    for (int i = 1; i < adjacency_list.size(); i++) {
-        printf("%d -> ", i);
-        for (int j = 0; j < adjacency_list[i].size(); j++) {
-            printf("%d ", adjacency_list[i][j]);
-        }
-        printf("\n");
-    }
-}
-
-pair<int, int> makeEdge(int x, int y) {
-    return make_pair(min(x, y), max(x, y));
-}
-
-unordered_set<int> setIntersection(unordered_set<int> set1, unordered_set<int> set2) {
-    unordered_set<int> intersection = unordered_set<int>();
-    for (int element : set1) {
-        if (set2.find(element) != set2.end()) {
-            intersection.insert(element);
-        }
-    }
-
-    return intersection;
-}
-
-unordered_set<int> setUnion(unordered_set<int> set1, unordered_set<int> set2) {
-    unordered_set<int> union_set = unordered_set<int>();
-    for (int element : set1) {
-        union_set.insert(element);
-    }
-
-    for (int element : set2) {
-        union_set.insert(element);
-    }
-
-    return union_set;
-}
-
-void printUnorderedSet(unordered_set<int> set) {
-    vector<int> vec = vector<int>(set.begin(), set.end());
-    QuickSort::sort(vec);
-
-    for (int i = 0; i < vec.size(); i++) {
-        printf("%d", vec[i]);
-
-        if(i != vec.size() - 1) {
-            printf(" ");
-        }
-    }
-
-    printf("\n");
-}
-
-// void dfs(int v, int p = -1) {
-//     visited[v] = true;
-//     tin[v] = low[v] = timer++;
-//     int children=0;
-
-//     for (int to : adjacency_list[v]) {
-//         if (to == p) { continue; }
-
-//         if (visited[to]) {
-//             low[v] = min(low[v], tin[to]);
-//         } else {
-//             dfs(to, v);
-//             low[v] = min(low[v], low[to]);
-
-//             if (low[to] >= tin[v] && p!=-1)
-//                 border_links.insert(v);
-            
-//             children++;
-//         }
-//     }
-    
-//     if(p == -1 && children > 1)
-//         border_links.insert(v);
-// }
-
 void dfs(int v){
     if(v == excluded_link) { return; }
     visited[v] = true;
@@ -192,8 +107,6 @@ void findBorderLinks() {
             minimum_nb_components++;
         }
     }
-
-    // printf("Componentes minimos: %d\n", minimum_nb_components);
     
     for(int exc = 1; exc <= n; exc++){
         excluded_link = exc;
@@ -208,8 +121,6 @@ void findBorderLinks() {
                 new_component_nb++;
             }
         }
-
-        // printf("Link excluído: %d, Componentes: %d\n", exc, new_component_nb);
 
         if (new_component_nb > minimum_nb_components){
             border_links.insert(exc);
@@ -227,47 +138,42 @@ void listBorderLinks() {
     }
 }
 
-void dfsBicomponent(int u) {
-  dfn[u] = low[u] = ++timeStamp;
-  S.push(u);
+void tarjanAlgorithm(int current_node) {
+  node_stack.push(current_node);
+  dfs_number[current_node] = low[current_node] = ++time_stamp;
 
-  for (int v : adjacency_list[u]) {
-    if (dfn[v] == 0) {
-      parent[v] = u;
-      dfsBicomponent(v);
-      low[u] = min(low[u], low[v]);
-      if (low[v] >= dfn[u]) {
-        vector<int> component;
-        int w;
+  for (int v : adjacency_list[current_node]) {
+    if (dfs_number[v] == 0) {
+      parent[v] = current_node;
+      tarjanAlgorithm(v);
+      low[current_node] = min(low[current_node], low[v]);
+      
+      if (low[v] >= dfs_number[current_node]) {
+        unordered_set<int> current_cluster;
+        int top_node;
+        
         do {
-          w = S.top();
-          S.pop();
-          component.push_back(w);
-        } while (w != v);
-        component.push_back(u);
-        components.push_back(component);
+          top_node = node_stack.top();
+          node_stack.pop();
+          current_cluster.insert(top_node);
+        } while (top_node != v);
+        
+        current_cluster.insert(current_node);
+        clusters.push_back(current_cluster);
       }
-    } else if (v != parent[u]) {
-      low[u] = min(low[u], dfn[v]);
+    } else if (v != parent[current_node]) {
+      low[current_node] = min(low[current_node], dfs_number[v]);
     }
   }
 }
 
 void findClusters(){
     for (int i = 1; i <= n; i++) {
-        if (dfn[i] == 0) {
-            dfsBicomponent(i);
+        if (dfs_number[i] == 0) {
+            tarjanAlgorithm(i);
         }
-    }
-
-    for (vector<int> component : components) {
-        for (int v : component) {
-        cout << v << " ";
-        }
-        cout << endl;
     }
 }
-const int N = 1e5 + 5;
 
 vector<vector<int>> sortLexicographically(vector<vector<int>> unsorted) {
     vector<vector<int>> sorted = vector<vector<int>>();
@@ -352,6 +258,9 @@ int main() {
         // o primeiro elemento não irá ser utilizado porque a indexação começa em 1
         adjacency_list.push_back(vector<int>());
     }
+    dfs_number = vector<int>(n); 
+    low = vector<int>(n);
+    parent = vector<int>(n);
 
     scanf("%d", &m);
     for (int i = 0; i < m; i++) {
@@ -361,22 +270,16 @@ int main() {
         
         adjacency_list[x].push_back(y);
         adjacency_list[y].push_back(x); // Assumindo grafo não dirigido
-
-        edges.insert(makeEdge(x, y));
     }
 
     findBorderLinks();
     listBorderLinks();
 
     findClusters();
+    listClusters();
 
-    
-
-    // findClusters();
-    // listClusters();
-
-    // findClusterBorderForest();
-    // listClusterBorderForest();
+    findClusterBorderForest();
+    listClusterBorderForest();
 
     return 0;
 }
