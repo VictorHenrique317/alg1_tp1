@@ -21,9 +21,11 @@ int excluded_link;
 // Variáveis globais para encontrar clusters
 vector<unordered_set<int>> clusters = vector<unordered_set<int>>();
 vector<int> dfs_number; 
+vector<int> tin; 
 vector<int> low; 
 vector<int> parent; 
 int time_stamp;
+int timer;
 stack<int> node_stack;
 
 // Variáveis globais para encontrar a floresta de clusters borda
@@ -86,80 +88,76 @@ void printVector(vector<int> vec) {
     printf("\n");
 }
 
-void printAdjacencyList(vector<vector<int>> adjacency_list) {
-    printf("Size: %ld\n", adjacency_list.size());
+// void dfs(int v){
+//     if(v == excluded_link) { return; }
+//     visited[v] = true;
 
-    for (int i = 1; i < adjacency_list.size(); i++) {
-        printf("%d -> ", i);
-        for (int j = 0; j < adjacency_list[i].size(); j++) {
-            printf("%d ", adjacency_list[i][j]);
-        }
-        printf("\n");
-    }
-}
+//     for (int neighbor : adjacency_list[v]) {
+//         if(!visited[neighbor]){
+//             dfs(neighbor);
+//         }
+//     }
+// }
 
-pair<int, int> makeEdge(int x, int y) {
-    return make_pair(min(x, y), max(x, y));
-}
+// void findBorderLinks() {
+//     visited.assign(n, false);
+//     excluded_link = 0; // Inicializando o link excluído para 0 (nenhum link é excluído)
+//     int minimum_nb_components = 0;
+//     for (int i = 1; i <= n; ++i) {
+//         if (!visited[i]){ 
+//             dfs (i);
+//             minimum_nb_components++;
+//         }
+//     }
+    
+//     for(int exc = 1; exc <= n; exc++){
+//         excluded_link = exc;
+//         visited.assign(n, false);
 
-void printUnorderedSet(unordered_set<int> set) {
-    vector<int> vec = vector<int>(set.begin(), set.end());
-    QuickSort::sort(vec);
+//         int new_component_nb = 0;
+//         for (int i = 1; i <= n; ++i) {
+//             if(i == exc) { continue; } // Ignorando o link excluído
 
-    for (int i = 0; i < vec.size(); i++) {
-        printf("%d", vec[i]);
+//             if (!visited[i]){ 
+//                 dfs (i);
+//                 new_component_nb++;
+//             }
+//         }
 
-        if(i != vec.size() - 1) {
-            printf(" ");
-        }
-    }
+//         if (new_component_nb > minimum_nb_components){
+//             border_links.insert(exc);
+//         }
+//     }
+// }
 
-    printf("\n");
-}
-
-void dfs(int v){
-    if(v == excluded_link) { return; }
+void dfs(int v, int p = -1) {
     visited[v] = true;
-
-    for (int neighbor : adjacency_list[v]) {
-        if(!visited[neighbor]){
-            dfs(neighbor);
+    tin[v] = low[v] = timer++;
+    int children=0;
+    for (int to : adjacency_list[v]) {
+        if (to == p) continue;
+        if (visited[to]) {
+            low[v] = min(low[v], tin[to]);
+        } else {
+            dfs(to, v);
+            low[v] = min(low[v], low[to]);
+            if (low[to] >= tin[v] && p!=-1)
+                border_links.insert(v);
+            ++children;
         }
     }
+    if(p == -1 && children > 1)
+        border_links.insert(v);
 }
 
 void findBorderLinks() {
+    timer = 0;
     visited.assign(n, false);
-    excluded_link = 0; // Inicializando o link excluído para 0 (nenhum link é excluído)
-    int minimum_nb_components = 0;
-    for (int i = 1; i <= n; ++i) {
-        if (!visited[i]){ 
+    tin.assign(n, -1);
+    low.assign(n, -1);
+    for (int i = 0; i < n; ++i) {
+        if (!visited[i])
             dfs (i);
-            minimum_nb_components++;
-        }
-    }
-
-    // printf("Componentes minimos: %d\n", minimum_nb_components);
-    
-    for(int exc = 1; exc <= n; exc++){
-        excluded_link = exc;
-        visited.assign(n, false);
-
-        int new_component_nb = 0;
-        for (int i = 1; i <= n; ++i) {
-            if(i == exc) { continue; } // Ignorando o link excluído
-
-            if (!visited[i]){ 
-                dfs (i);
-                new_component_nb++;
-            }
-        }
-
-        // printf("Link excluído: %d, Componentes: %d\n", exc, new_component_nb);
-
-        if (new_component_nb > minimum_nb_components){
-            border_links.insert(exc);
-        }
     }
 }
 
@@ -286,7 +284,6 @@ void listClusterBorderForest(){
 
 int main() {
     adjacency_list = vector<vector<int>>();
-    
 
     scanf("%d", &n); // Número de links
     for (int i = 0; i <= n; i++) {
